@@ -9,15 +9,15 @@ app.use(express.json());
   
 const db = new sqlite3.Database("./users.db");  
   
-// Create users table
-db.run(  
+// Create users table - Fixed: Added backticks around the SQL string
+db.run(`
   CREATE TABLE IF NOT EXISTS users (  
     id INTEGER PRIMARY KEY AUTOINCREMENT,  
     phone TEXT UNIQUE,  
     password TEXT,  
     balance INTEGER  
-  )  
-, (err) => {  
+  )
+`, (err) => {  
     if (err) {  
         console.error("Table creation error:", err.message);  
     } else {  
@@ -41,8 +41,7 @@ app.post("/register", (req, res) => {
         if (err) {  
           return res.json({ success: false });  
         }  
-        res.json({ success: true });  
-      }  
+        res.json({ success: true });                                                                                             }  
     );  
   });  
 });  
@@ -66,21 +65,17 @@ app.post("/login", (req, res) => {
 
 // VIEW USERS (for testing)
 app.get("/users", (req, res) => {
-
   db.all("SELECT id, phone, password, balance FROM users", [], (err, rows) => {
-
     if (err) {
-      return res.json({ success:false })
+      return res.json({ success: false });
     }
-
-    res.json(rows)
-
-  })
-
-})
+    res.json(rows);
+  });
+});
   
 // Use process.env.PORT for Render compatibility  
 const PORT = process.env.PORT || 3000;  
 app.listen(PORT, () => {  
-  console.log(Server running on port ${PORT});  
+  // Fixed: Added backticks for the template literal
+  console.log(`Server running on port ${PORT}`);  
 });
