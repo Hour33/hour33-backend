@@ -13,15 +13,17 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Create table
-pool.query(
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  phone TEXT UNIQUE,
-  password TEXT,
-  balance INTEGER
-)
-);
+// Create table - Fixed with backticks (`)
+pool.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    phone TEXT UNIQUE,
+    password TEXT,
+    balance INTEGER
+  );
+`)
+.then(() => console.log("Database table is ready"))
+.catch(err => console.error("Error creating table:", err));
 
 // REGISTER
 app.post("/register", async (req, res) => {
@@ -34,6 +36,7 @@ app.post("/register", async (req, res) => {
       return res.json({ success: false, message: "Account exists" });
     }
 
+    // Default balance 200
     await pool.query(
       "INSERT INTO users(phone,password,balance) VALUES($1,$2,$3)",
       [phone, password, 200]
@@ -42,7 +45,8 @@ app.post("/register", async (req, res) => {
     res.json({ success: true });
 
   } catch (err) {
-    res.json({ success: false });
+    console.error(err);
+    res.json({ success: false, message: "Server error during registration" });
   }
 });
 
@@ -66,7 +70,8 @@ app.post("/login", async (req, res) => {
     res.json({ success: true, user });
 
   } catch (err) {
-    res.json({ success: false });
+    console.error(err);
+    res.json({ success: false, message: "Server error during login" });
   }
 });
 
@@ -76,11 +81,12 @@ app.get("/users", async (req, res) => {
     const result = await pool.query("SELECT id, phone, password, balance FROM users");
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.json([]);
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Server running");
+  console.log(`Server running on port ${PORT}`);
 });
