@@ -7,29 +7,42 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect to PostgreSQL
+// ✅ FIXED PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
-// 🔥 FORCE CLEAN TABLE (fix previous errors)
-(async () => {
+// 🔥 Auto reconnect log
+pool.on("connect", () => {
+  console.log("Connected to PostgreSQL");
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected DB error:", err);
+});
+
+// ✅ Create table safely (NO DROP)
+async function initDB() {
   try {
     await pool.query(`
-      DROP TABLE IF EXISTS users;
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         phone TEXT UNIQUE,
         password TEXT,
         balance INTEGER
       );
     `);
-    console.log("Fresh users table created");
+    console.log("Database ready");
   } catch (err) {
-    console.error("Table error:", err);
+    console.error("DB INIT ERROR:", err);
   }
-})();
+}
+
+initDB();
 
 // REGISTER
 app.post("/register", async (req, res) => {
@@ -53,7 +66,7 @@ app.post("/register", async (req, res) => {
     res.json({ success: true });
 
   } catch (err) {
-    console.error("REGISTER ERROR:", err);
+    console.error("REGISTER ERROR:", err.message);
     res.json({ success: false, message: "Server error during registration" });
   }
 });
@@ -81,7 +94,7 @@ app.post("/login", async (req, res) => {
     res.json({ success: true, user });
 
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error("LOGIN ERROR:", err.message);
     res.json({ success: false, message: "Server error during login" });
   }
 });
@@ -94,7 +107,7 @@ app.get("/users", async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error("USERS ERROR:", err);
+    console.error("USERS ERROR:", err.message);
     res.json([]);
   }
 });
