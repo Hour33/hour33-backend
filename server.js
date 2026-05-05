@@ -13,30 +13,38 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Create table - Fixed with backticks (`)
-pool.query(`
-  CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    phone TEXT UNIQUE,
-    password TEXT,
-    balance INTEGER
-  );
-`)
-.then(() => console.log("Database table is ready"))
-.catch(err => console.error("Error creating table:", err));
+// 🔥 FORCE CLEAN TABLE (fix previous errors)
+(async () => {
+  try {
+    await pool.query(`
+      DROP TABLE IF EXISTS users;
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        phone TEXT UNIQUE,
+        password TEXT,
+        balance INTEGER
+      );
+    `);
+    console.log("Fresh users table created");
+  } catch (err) {
+    console.error("Table error:", err);
+  }
+})();
 
 // REGISTER
 app.post("/register", async (req, res) => {
   const { phone, password } = req.body;
 
   try {
-    const check = await pool.query("SELECT * FROM users WHERE phone=$1", [phone]);
+    const check = await pool.query(
+      "SELECT * FROM users WHERE phone=$1",
+      [phone]
+    );
 
     if (check.rows.length > 0) {
       return res.json({ success: false, message: "Account exists" });
     }
 
-    // Default balance 200
     await pool.query(
       "INSERT INTO users(phone,password,balance) VALUES($1,$2,$3)",
       [phone, password, 200]
@@ -45,7 +53,7 @@ app.post("/register", async (req, res) => {
     res.json({ success: true });
 
   } catch (err) {
-    console.error(err);
+    console.error("REGISTER ERROR:", err);
     res.json({ success: false, message: "Server error during registration" });
   }
 });
@@ -55,7 +63,10 @@ app.post("/login", async (req, res) => {
   const { phone, password } = req.body;
 
   try {
-    const result = await pool.query("SELECT * FROM users WHERE phone=$1", [phone]);
+    const result = await pool.query(
+      "SELECT * FROM users WHERE phone=$1",
+      [phone]
+    );
 
     if (result.rows.length === 0) {
       return res.json({ success: false, message: "No account" });
@@ -70,7 +81,7 @@ app.post("/login", async (req, res) => {
     res.json({ success: true, user });
 
   } catch (err) {
-    console.error(err);
+    console.error("LOGIN ERROR:", err);
     res.json({ success: false, message: "Server error during login" });
   }
 });
@@ -78,10 +89,12 @@ app.post("/login", async (req, res) => {
 // VIEW USERS
 app.get("/users", async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, phone, password, balance FROM users");
+    const result = await pool.query(
+      "SELECT id, phone, password, balance FROM users"
+    );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("USERS ERROR:", err);
     res.json([]);
   }
 });
